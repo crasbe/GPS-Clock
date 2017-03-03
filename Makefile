@@ -32,6 +32,11 @@ MCU = attiny2313
 #     automatically to create a 32-bit value in your source code.
 F_CPU = 16000000
 
+# Processor fuses
+#     Please be VERY careful with those!
+LFUSE = 0xFF
+HFUSE = 0xDF
+EFUSE = 0xFF
 
 # Target file name (without extension).
 TARGET =  gpsclock
@@ -205,6 +210,10 @@ AVRDUDE_FLAGS += $(AVRDUDE_ERASE_COUNTER)
 AVRDUDE_FLAGS += $(AVRDUDE_SPEED)
 AVRDUDE_FLAGS += $(AVRDUDE_VERBOSE)
 
+#
+AVRDUDE_WRITE_FUSE = -U lfuse:w:$(LFUSE):m
+AVRDUDE_WRITE_FUSE += -U hfuse:w:$(HFUSE):m
+AVRDUDE_WRITE_FUSE += -U efuse:w:$(EFUSE):m
 
 
 #============================================================================
@@ -316,7 +325,10 @@ size: ${TARGET}.elf
 # Program the device.  
 program: $(TARGET).hex $(TARGET).eep
 	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH) $(AVRDUDE_WRITE_EEPROM)
-
+	
+# Program the fuses.
+fuse:
+	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FUSE)
 
 # Delete all generated files.
 clean:

@@ -7,14 +7,10 @@ Hardware: HD44780 compatible LCD text display
 		  GPS module sending NMEA messages over serial
 		  7 free IO pins for LCD, 1 for UART
 **************************************************************************/
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
-#include <util/delay.h>
 
 #include "lcd.h"
 #include "uart.h"
@@ -97,7 +93,10 @@ int main(void) {
 						state = NO_CMD;
 				} else // something else
 					state = NO_CMD;
-			} else if(state == RECV_GPGGA && lock == 1 && comma == 2) { // no lock yet
+			} else if(	state == RECV_GPGGA && lock == 1 && 
+						comma == 2 && buffer[0] != 'G') { // no lock yet
+				// on a cold start the module does not even output the
+				// RTC time, so there is no time in buffer
 				displayTime(buffer, true);
 			}
 			continue;

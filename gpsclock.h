@@ -3,9 +3,38 @@
 #ifndef GPSCLOCK_H_
 #define GPSCLOCK_H_
 
+/*****************************
+ * Pin definitions
+ *****************************/
+
+// LED Output
+#define LED_NOLOCK		PD6
+#define LED_NOLOCK_DDR	DDRD
+#define LED_NOLOCK_PORT PORTD
+#define LED_2DLOCK		PD2
+#define LED_2DLOCK_DDR	DDRD
+#define LED_2DLOCK_PORT PORTD
+#define LED_3DLOCK 		PB4
+#define LED_3DLOCK_DDR  DDRB
+#define LED_3DLOCK_PORT PORTB
+
+/*****************************
+ * Macros
+ *****************************/
+
+// UART baud rate. most GPS modules use 9600 baud
 #define UART_BAUD_RATE      9600
 
+
+/*****************************
+ * Auxiliary Macros
+ * DO NOT CHANGE!
+ *****************************/
+
 // to change the LCD properties please edit lcd_definitions.h
+
+#define TIME_X 0
+#define TIME_Y 0
 
 // some 16x1 think they're 8x2 displays
 #if (LCD_DISP_LENGTH == 8) && (LCD_LINES == 2)
@@ -22,11 +51,11 @@
 #define LOCK_Y 1
 #define SAT_X 8
 #define SAT_Y 1
-#define TXT_RTC
+#define TXT_RTC		/* Macro to activate the "RTC" text*/
 
 #endif
 
-// states:
+// Receiver states:
 // 0 - no command
 // 1 - receiving command
 // 2 - receiving GPGGA
@@ -36,8 +65,12 @@
 #define RECV_GPGGA	2
 #define RECV_GPGSA	3
 
+/*****************************
+ * Function Prototypes
+ ****************************/
+
 void displayTime(char *utctime, bool rtc) {
-	lcd_gotoxy(0, 0); // first line, first character
+	lcd_gotoxy(TIME_X, TIME_Y); // first line, first character
 	lcd_putc(utctime[0]);
 	lcd_putc(utctime[1]);
 	lcd_putc(':');

@@ -18,62 +18,14 @@ Hardware: HD44780 compatible LCD text display
 
 #include "lcd.h"
 #include "uart.h"
-
-#define UART_BAUD_RATE      9600
-
-#if LCD_DISP_LENGTH == 8
-#define TXT_TEMPLATE "xx:xx:xx\n xx xxSa"
-#define LOCK_X 1
-#define LOCK_Y 1
-#define SAT_X 4
-#define SAT_Y 1
- 
-#else
-#define TXT_TEMPLATE "xx:xx:xx UTC\nxx LOCK xx SAT"
-#define LOCK_X 0
-#define LOCK_Y 1
-#define SAT_X 8
-#define SAT_Y 1
-#define TXT_RTC
-
-#endif
-
-// states:
-// 0 - no command
-// 1 - receiving command
-// 2 - receiving GPGGA
-// 3 - receiving GPGSA
-#define NO_CMD		0
-#define RECV_CMD 	1
-#define RECV_GPGGA	2
-#define RECV_GPGSA	3
-
-void displayTime(char *utctime, bool rtc) {
-	lcd_gotoxy(0, 0); // first line, first character
-	lcd_putc(utctime[0]);
-	lcd_putc(utctime[1]);
-	lcd_putc(':');
-	lcd_putc(utctime[2]);
-	lcd_putc(utctime[3]);
-	lcd_putc(':');
-	lcd_putc(utctime[4]);
-	lcd_putc(utctime[5]);
-#ifdef TXT_RTC
-	lcd_gotoxy(13, 0);
-	if(rtc == true) {
-		lcd_puts_P("RTC");
-	} else {
-		lcd_puts_P("   ");
-	}
-#endif
-}
+#include "gpsclock.h"
 
 
 int main(void) {
-	unsigned int c;
-	char input;
+	unsigned int c; 		// received char from the UART
+	unsigned char input;	// the same, converted to char
 	
-	uint8_t state = NO_CMD;
+	uint8_t state = NO_CMD; // state of the receiving process
 	
 	// comma position
 	// GPGGA - time after first comma, satellite count after seventh comma
@@ -82,33 +34,29 @@ int main(void) {
 	//		 - $GPGSA,,l,,,,
 	uint8_t comma = 0;
 	
-	// receive the command
-	char command[6];
-	uint8_t compos = 0; // position
-
-	// receive the time (hhmmss.00)
-	char utctime[9];
-	uint8_t utctimepos = 0;
-	
-	// receive the satellite count
-	char satcount[2];
-	uint8_t satpos = 0;
+	// buffer for receiving command, time, satellite count or lock state
+	char buffer[9];
+	uint8_t bufpos = 0;
 	
 	// receive the lock state
 	uint8_t lock = 1;
-
-	// initialize display, cursor off
-	lcd_init(LCD_DISP_ON);
-
-	// initialize UART
+	
+	// initialize the LED port
+	LED_NOLOCK_DDR |= (1 << LED_NOLOCK);	// outputs
+	LED_2DLOCK_DDR |= (1 << LED_2DLOCK);
+	LED_3DLOCK_DDR |= (1 << LED_3DLOCK);
+	LED_NOLOCK_PORT |= (1 << LED_NOLOCK);	// no lock at startup
+	LED_2DLOCK_PORT &= ~(1 << LED_2DLOCK);
+	LED_3DLOCK_PORT &= ~(1 << LED_3DLOCK);
+	
+	
+	// initialize UART and enable interrupts
 	uart_init( UART_BAUD_SELECT(UART_BAUD_RATE,F_CPU) );
+	sei();
 	
-	sei(); // enable interrupts for UART
-	
-	lcd_clrscr(); // clear the LCD
-
-	//lcd_puts_P("xx:xx:xx UTC\nxx LOCK xx SAT"); // template for LCD
-	lcd_puts_P(TXT_TEMPLATE);
+	lcd_init(LCD_DISP_ON); 		// initialize display, cursor off
+	lcd_clrscr(); 				// clear the LCD
+	lcd_puts_P(TXT_TEMPLATE);	// write a template to the screen
 	
 	for (;;) {
 		c = uart_getc(); // get a char from the buffer
@@ -125,10 +73,8 @@ int main(void) {
 		if(input == '\n') { // the party with this line is over
 			state = NO_CMD;
 			comma = 0;
-			compos = 0;
-			utctimepos = 0;
-			satpos = 0;
 			lock = 1;
+			bufpos = 0;
 			
 			continue;
 		} else if(input == '$') { // new line, new luck
@@ -136,58 +82,59 @@ int main(void) {
 			continue;
 		} else if(input == ',') {
 			comma += 1;
+			bufpos = 0;
 			
 			// we finished receiving the command
 			if(state == RECV_CMD) {
 				// is our command "GPG*A"?
-				if(	command[0] == 'G' && command[1] == 'P' && 
-					command[2] == 'G' && command[4] == 'A') {
-					if(command[3] == 'G') // GPGGA
+				if(	buffer[0] == 'G' && buffer[1] == 'P' && 
+					buffer[2] == 'G' && buffer[4] == 'A') {
+					if(buffer[3] == 'G') // GPGGA
 						state = RECV_GPGGA;
-					else if(command[3] == 'S') // GPGSA
+					else if(buffer[3] == 'S') // GPGSA
 						state = RECV_GPGSA;
 					else // something else
 						state = NO_CMD;
 				} else // something else
 					state = NO_CMD;
 			} else if(state == RECV_GPGGA && lock == 1 && comma == 2) { // no lock yet
-				displayTime(utctime, true);
-				// lcd_puts_P("RTC");		// display the time from the RTC
+				displayTime(buffer, true);
 			}
 			continue;
 		} 
 		
-		if(state == RECV_CMD) { // fill the command buffer
-			command[compos] = (char) input;
-			compos++;
+		if(state == RECV_CMD || (state == RECV_GPGGA && (comma == 1 || comma == 7))) { // fill the command buffer
+			buffer[bufpos] = input;
+			bufpos++;
 		} else if(state == RECV_GPGGA) { // time and satellite count
-			if(comma == 1) { 	// receiving time
-				utctime[utctimepos] = input;
-				utctimepos++;
-			} else if(comma == 2) { // time received
-				displayTime(utctime, false);
-				//lcd_puts_P("   "); // override a "RTC"
-			} else if(comma == 7) {		// receiving satellite count
-				satcount[satpos] = input;
-				satpos++;
+			if(comma == 2) {
+				displayTime(buffer, false);
 			} else if(comma == 8) { // satellite count received
-				//lcd_gotoxy(8, 1);
 				lcd_gotoxy(SAT_X, SAT_Y);
-				lcd_putc(satcount[0]);
-				lcd_putc(satcount[1]);
+				lcd_putc(buffer[0]);
+				lcd_putc(buffer[1]);
 			}
 		} else if(state == RECV_GPGSA) {
 			if(comma == 2) { // receive lock state
-				lock = atoi(&input);
+				lock = (uint8_t) (input-0x30); // better than atoi
 				
-				//lcd_gotoxy(0, 1); // second line, first character
 				lcd_gotoxy(LOCK_X, LOCK_Y);
-				if(lock == 1)
+				if(lock == 1) {
 					lcd_puts_P("NO");
-				else if(lock == 2)
+					LED_NOLOCK_PORT |= (1 << LED_NOLOCK);
+					LED_2DLOCK_PORT &= ~(1 << LED_2DLOCK);
+					LED_3DLOCK_PORT &= ~(1 << LED_3DLOCK);
+				} else if(lock == 2) {
 					lcd_puts_P("2D");
-				else if(lock == 3)
+					LED_NOLOCK_PORT &= ~(1 << LED_NOLOCK);
+					LED_2DLOCK_PORT |= (1 << LED_2DLOCK);
+					LED_3DLOCK_PORT &= ~(1 << LED_3DLOCK);
+				} else if(lock == 3) {
 					lcd_puts_P("3D");
+					LED_NOLOCK_PORT &= ~(1 << LED_NOLOCK);
+					LED_2DLOCK_PORT &= ~(1 << LED_2DLOCK);
+					LED_3DLOCK_PORT |= (1 << LED_3DLOCK);
+				}
 			}
 		}
 	}

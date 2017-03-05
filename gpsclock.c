@@ -10,6 +10,7 @@ Hardware: HD44780 compatible LCD text display
 #include <stdbool.h>
 
 #include <avr/io.h>
+#include <avr/sleep.h>
 #include <avr/interrupt.h>
 
 #include "lcd.h"
@@ -55,6 +56,8 @@ int main(void) {
 	lcd_puts_P(TXT_TEMPLATE);	// write a template to the screen
 	
 	for (;;) {
+		set_sleep_mode(SLEEP_MODE_IDLE);
+        sleep_mode();
 		c = uart_getc(); // get a char from the buffer
 		if (c & UART_NO_DATA) { // nothing received
 			continue;

@@ -8,15 +8,15 @@
  *****************************/
 
 // LED Output
-#define LED_NOLOCK		PD6
+#define LED_NOLOCK		PD4
 #define LED_NOLOCK_DDR	DDRD
 #define LED_NOLOCK_PORT PORTD
-#define LED_2DLOCK		PD2
+#define LED_2DLOCK		PD3
 #define LED_2DLOCK_DDR	DDRD
 #define LED_2DLOCK_PORT PORTD
-#define LED_3DLOCK 		PB4
-#define LED_3DLOCK_DDR  DDRB
-#define LED_3DLOCK_PORT PORTB
+#define LED_3DLOCK 		PD2
+#define LED_3DLOCK_DDR  DDRD
+#define LED_3DLOCK_PORT PORTD
 
 /*****************************
  * Macros

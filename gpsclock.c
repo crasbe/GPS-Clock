@@ -13,6 +13,8 @@ Hardware: HD44780 compatible LCD text display
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 
+#include <util/delay.h>
+
 #include "lcd.h"
 #include "uart.h"
 #include "gpsclock.h"
@@ -53,6 +55,12 @@ int main(void) {
 	
 	lcd_init(LCD_DISP_ON); 		// initialize display, cursor off
 	lcd_clrscr(); 				// clear the LCD
+	
+	lcd_puts_P("GPS-Clock by\ncrasbe, R1 2017");
+	
+	_delay_ms(3000);
+		
+	lcd_clrscr();
 	lcd_puts_P(TXT_TEMPLATE);	// write a template to the screen
 	
 	for (;;) {

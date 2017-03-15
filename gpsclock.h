@@ -25,6 +25,26 @@
 // UART baud rate. most GPS modules use 9600 baud
 #define UART_BAUD_RATE      9600
 
+/*****************************
+ * u-blox 7 configuration
+ * for Timepulse
+ *****************************/
+
+// this configuration changes the timepulse output of the u-blox
+// NEO-7M module to 10kHz. be aware that this might not be the
+// configuration you desire!
+// Please refer to the u-blox receiver description!
+#define UBLOX_CONF
+
+#ifdef UBLOX_CONF
+const unsigned char configuration[40] PROGMEM = { 
+	0xB5, 0x62, 0x06, 0x31, 0x20, 0x00, 
+	0x00, 0x01, 0x00, 0x00, 0x32, 0x00, 0x00, 0x00,
+	0x01, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
+	0x00, 0x00, 0x00, 0x00, 0xEF, 0x00, 0x00, 0x00,
+	0x31, 0xDB };
+#endif
 
 /*****************************
  * Auxiliary Macros
@@ -51,9 +71,13 @@
 #define LOCK_Y 1
 #define SAT_X 8
 #define SAT_Y 1
-#define TXT_RTC		/* Macro to activate the "RTC" text*/
+#define RTC_TXT		/* Macro to activate the "RTC" text*/
+#ifdef RTC_TXT
+#define RTC_X 13
+#define RTC_Y 0
+#endif // RTC_TXT
 
-#endif
+#endif // 16x2
 
 // Receiver states:
 // 0 - no command
@@ -69,7 +93,7 @@
  * Function Prototypes
  ****************************/
 
-void displayTime(char *utctime, bool rtc) {
+void displayTime(char *utctime) {
 	lcd_gotoxy(TIME_X, TIME_Y); // first line, first character
 	lcd_putc(utctime[0]);
 	lcd_putc(utctime[1]);
@@ -79,14 +103,6 @@ void displayTime(char *utctime, bool rtc) {
 	lcd_putc(':');
 	lcd_putc(utctime[4]);
 	lcd_putc(utctime[5]);
-#ifdef TXT_RTC
-	lcd_gotoxy(13, 0);
-	if(rtc == true) {
-		lcd_puts_P("RTC");
-	} else {
-		lcd_puts_P("   ");
-	}
-#endif
 }
 
 #endif // GPSCLOCK_H_

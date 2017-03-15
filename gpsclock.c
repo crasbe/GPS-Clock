@@ -1,16 +1,16 @@
 /*************************************************************************
 Title:    Interprets NMEA messages on the UART
 Author:   crasbe  <crasbe@gmail.com>  http://www.crasbe.de/
+          Peter Fleury (LCD- and UART-Library)
 File:     gpsclock.c
 Software: AVR-GCC 4.x
 Hardware: HD44780 compatible LCD text display
 		  GPS module sending NMEA messages over serial
 		  7 free IO pins for LCD, 1 for UART
 **************************************************************************/
-#include <stdbool.h>
-
 #include <avr/io.h>
 #include <avr/sleep.h>
+#include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 
 #include <util/delay.h>
@@ -18,6 +18,8 @@ Hardware: HD44780 compatible LCD text display
 #include "lcd.h"
 #include "uart.h"
 #include "gpsclock.h"
+
+#define REVISION "R1 2017"
 
 
 int main(void) {
@@ -56,10 +58,17 @@ int main(void) {
 	lcd_init(LCD_DISP_ON); 		// initialize display, cursor off
 	lcd_clrscr(); 				// clear the LCD
 	
-	lcd_puts_P("GPS-Clock by\ncrasbe, R1 2017");
+	lcd_puts_P("GPS-Clock by\ncrasbe, "REVISION);
 	
 	_delay_ms(3000);
-		
+	
+	// the ublox-module should be booted now..
+#ifdef UBLOX_CONF
+	for(uint8_t i = 0; i < 40; i++) {
+		uart_putc((unsigned char) pgm_read_byte(&(configuration[i])));
+	}
+#endif	
+	
 	lcd_clrscr();
 	lcd_puts_P(TXT_TEMPLATE);	// write a template to the screen
 	
@@ -108,7 +117,11 @@ int main(void) {
 						comma == 2 && buffer[0] != 'G') { // no lock yet
 				// on a cold start the module does not even output the
 				// RTC time, so there is no time in buffer
-				displayTime(buffer, true);
+				displayTime(buffer);
+#ifdef RTC_TXT
+				lcd_gotoxy(RTC_X, RTC_Y);
+				lcd_puts_P("RTC");
+#endif
 			}
 			continue;
 		} 
@@ -118,7 +131,11 @@ int main(void) {
 			bufpos++;
 		} else if(state == RECV_GPGGA) { // time and satellite count
 			if(comma == 2) {
-				displayTime(buffer, false);
+				displayTime(buffer);
+#ifdef RTC_TXT
+				lcd_gotoxy(RTC_X, RTC_Y);
+				lcd_puts_P("   ");
+#endif
 			} else if(comma == 8) { // satellite count received
 				lcd_gotoxy(SAT_X, SAT_Y);
 				lcd_putc(buffer[0]);
